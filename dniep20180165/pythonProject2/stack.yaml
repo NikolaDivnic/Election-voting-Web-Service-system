@@ -1,0 +1,116 @@
+version: '3'
+
+services:
+  baza:
+    image: mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 10s
+      retries: 10
+    volumes:
+      - dbdata:/var/lib/mysql
+    networks:
+      - mreza_autorizacija
+
+
+  migracija:
+    #restart: always
+    image: migracija
+    environment:
+      - BAZA_AUTH_KONTEJNER=baza
+    networks:
+      - mreza_autorizacija
+
+
+  autorizacija:
+    image: autorizacija
+    environment:
+      - BAZA_AUTH_KONTEJNER=baza
+    ports:
+    - 6000:6000
+    networks:
+      - mreza_autorizacija
+
+  adminer:
+    image: adminer
+    ports:
+      - 8080:8080
+    networks:
+      - mreza_autorizacija
+      - mreza_glasanje
+
+  redis:
+    image: redis
+    networks:
+      - redis_mreza
+
+  glasanjebaza:
+    image: mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+      timeout: 10s
+      retries: 10
+    volumes:
+      - dbdata1:/var/lib/mysql
+    networks:
+      - mreza_glasanje
+
+  glasanjemigracija:
+      image: glasanjemigracija
+      environment:
+        - REDIS=redis
+        - BAZA_AUTH_KONTEJNER=glasanjebaza
+      networks:
+        - mreza_glasanje
+
+
+
+  admin:
+    image: adminfile
+    environment:
+      - REDIS=redis
+      - BAZA_AUTH_KONTEJNER=glasanjebaza
+    ports:
+      - 6001:6001
+    networks:
+      - mreza_glasanje
+
+  dameon:
+    image: demondockerfile
+    networks:
+      - redis_mreza
+      - mreza_glasanje
+    environment:
+      - REDIS=redis
+      - BAZA_AUTH_KONTEJNER=glasanjebaza
+
+
+
+
+  zvanicnik:
+    image: zvanicnik
+    ports:
+      - 6002:6002
+    environment:
+      - REDIS=redis
+      - BAZA_AUTH_KONTEJNER=glasanjebaza
+    networks:
+      - redis_mreza
+      - mreza_glasanje
+    #deploy:
+     # replicas: 3
+
+volumes:
+  dbdata:
+  dbdata1:
+networks:
+  mreza_autorizacija:
+    driver: overlay
+  redis_mreza:
+    driver: overlay
+  mreza_glasanje:
+    driver: overlay
